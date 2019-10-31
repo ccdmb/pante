@@ -31,7 +31,7 @@ def helpMessage() {
       --genomes "genomes/*.fasta" \
       --repbase "downloads/RepBaseRepeatMaskerEdition-20181026.tar.gz" \
       --rm_meta "downloads/RepeatMaskerMetaData-20181026.tar.gz" \
-      --species "fungi"
+      --rm_species "fungi"
     ```
 
     ## Parameters
@@ -177,6 +177,11 @@ def helpMessage() {
         family must be present in (after `--min_intra_frequency`)
         to be considered a geniune family.
 
+    --repeatmodeler_min_len <int>
+        10000
+        The minimum scaffold length to allow for predicting repeats in repeatmodeler.
+        Scaffolds smaller than this will be removed to avoid sampling bias.
+
     --eahelitron_three_prime_fuzzy_level <int>
         3
         Passed on to the EAHelitron parameter `-r`.
@@ -276,6 +281,8 @@ params.gypsydb_url = "http://gydb.org/gydbModules/collection/collection/db/GyDB_
 params.pfam_ids = "$baseDir/data/pfam_ids.txt"
 params.protein_families = "$baseDir/data/proteins/families.stk"
 
+params.repeatmodeler_min_len = 1000
+
 params.infernal_max_evalue = 0.00001
 params.mmseqs_max_evalue = 0.001
 
@@ -351,6 +358,7 @@ if ( params.dfam_hmm ) {
 
         label "download"
         label "small_task"
+        time "4h"
 
         publishDir "${params.outdir}/downloads"
 
@@ -382,6 +390,7 @@ if ( params.dfam_embl ) {
 
         label "download"
         label "small_task"
+        time "1h"
 
         publishDir "${params.outdir}/downloads"
 
@@ -413,6 +422,7 @@ if ( params.rm_repeatpeps ) {
 
         label "repeatmasker"
         label "small_task"
+        time "20m"
 
         publishDir "${params.outdir}/downloads"
 
@@ -459,6 +469,7 @@ if ( params.rfam && params.rfam_clanin ) {
 
         label "download"
         label "small_task"
+        time "4h"
 
         publishDir "${params.outdir}/downloads"
 
@@ -489,6 +500,7 @@ if ( params.rfam_gomapping ) {
 
         label "download"
         label "small_task"
+        time "1h"
 
         publishDir "${params.outdir}/downloads"
 
@@ -519,7 +531,8 @@ if ( params.pfam ) {
     process getPfam {
 
         label "download"
-        label "small_task"
+        label "medium_task"
+        time "4h"
 
         publishDir "${params.outdir}/downloads"
 
@@ -558,7 +571,6 @@ if ( params.pfam ) {
 if ( params.gypsydb ) {
     Channel
         .fromPath( params.gypsydb, checkIfExists: true, type: "file")
-        .collectFile(newLine: true)
         .set { gypsydb }
 
 } else {
@@ -576,11 +588,12 @@ if ( params.gypsydb ) {
 
         label "download"
         label "small_task"
+        time "4h"
 
         publishDir "${params.outdir}/downloads"
 
         output:
-        file "gypsydb/*" into gypsydb
+        file "gypsydb/*" into gypsydb mode flatten
 
         script:
         """
@@ -597,9 +610,10 @@ process processGydb {
 
     label "posix"
     label "small_task"
+    time "20m"
 
     input:
-    file "stk/*" from gypsydb
+    file "stk/*" from gypsydb.collect()
 
     output:
     file "gypsydb.stk" into gypsyDBMSAs
@@ -639,6 +653,7 @@ if ( params.mitefinder_profiles ) {
 
         label "mitefinder"
         label "small_task"
+        time "20m"
 
         output:
         file "pattern_scoring.txt" into miteFinderProfiles
@@ -688,6 +703,7 @@ process runTRNAScan {
 
     label "trnascan"
     label "medium_task"
+    time "5h"
 
     publishDir "${params.outdir}/noncoding/${name}"
 
@@ -733,6 +749,7 @@ process getTRNAScanGFF {
 
     label "gffpal"
     label "small_task"
+    time "1h"
 
     tag "${name}"
 
@@ -760,6 +777,7 @@ process pressRfam {
 
     label "infernal"
     label "small_task"
+    time "2h"
 
     when:
     run_infernal
@@ -787,6 +805,7 @@ process chunkifyGenomes {
 
     label "python3"
     label "small_task"
+    time "1h"
 
     tag "${name}"
 
@@ -821,6 +840,7 @@ process runInfernal {
 
     label "infernal"
     label "small_task"
+    time "5h"
 
     tag "${name}"
 
@@ -879,6 +899,7 @@ process tidyInfernalMatches {
 
     label "gffpal"
     label "small_task"
+    time "1h"
 
     tag "${name}"
 
@@ -913,6 +934,7 @@ process combineInfernal {
 
     label "genometools"
     label "small_task"
+    time "1h"
 
     tag "${name}"
 
@@ -954,6 +976,7 @@ process runRNAmmer {
 
     label "rnammer"
     label "small_task"
+    time "5h"
 
     publishDir "${params.outdir}/noncoding/${name}", saveAs: exclude_unclean
 
@@ -987,7 +1010,7 @@ process getRNAmmerGFF {
 
     label "gffpal"
     label "small_task"
-
+    time "1h"
 
     tag "${name}"
 
@@ -1016,7 +1039,9 @@ process runOcculterCut {
 
     label "occultercut"
     label "small_task"
+    time "4h"
     tag "${name}"
+
     publishDir "${params.outdir}/noncoding/${name}"
 
     input:
@@ -1064,6 +1089,7 @@ process getOcculterCutRegionFrequencies {
 
     label "gffpal"
     label "small_task"
+    time "2h"
 
     tag "${name}"
 
@@ -1094,6 +1120,7 @@ process getOcculterCutGroupedRegionFrequencies {
 
     label "gffpal"
     label "small_task"
+    time "2h"
 
     tag "${name}"
 
@@ -1130,6 +1157,7 @@ process tidyOcculterCutGFFs {
 
     label "genometools"
     label "small_task"
+    time "1h"
 
     tag "${name} - ${suffix}"
 
@@ -1152,7 +1180,6 @@ process tidyOcculterCutGFFs {
       in.gff \
     > "${name}_${suffix}.gff3"
     """
-
 }
 
 
@@ -1168,6 +1195,7 @@ process prepRepeatMaskerDB {
 
     label "repeatmasker"
     label "small_task"
+    time "3h"
 
     input:
     file "repbase.tar.gz" from repbase
@@ -1228,6 +1256,32 @@ process prepRepeatMaskerDB {
 
 
 /*
+ */
+process filterScaffoldLength {
+
+    label "posix"
+    label "small_task"
+    time "1h"
+
+    tag "${name}"
+
+    input:
+    set val(name), file("in.fasta") from genomes4RunRepeatModeler
+
+    output:
+    set val(name), file("filtered.fasta") into filteredGenomes4RunRepeatModeler
+
+    script:
+    """
+    fasta_to_tsv.sh < in.fasta \
+    | awk -v size="${params.repeatmodeler_min_len}" 'length(\$2) >= size' \
+    | tsv_to_fasta.sh \
+    > filtered.fasta
+    """
+}
+
+
+/*
  * RepeatModeler
  * url: http://www.repeatmasker.org/RepeatModeler/
  *
@@ -1238,12 +1292,16 @@ process runRepeatModeler {
 
     label "repeatmasker"
     label "big_task"
+    time "1d"
+
+    errorStrategy 'retry'
+    maxRetries 3
 
     tag "${name}"
     publishDir "${params.outdir}/tes/${name}"
 
     input:
-    set val(name), file(fasta) from genomes4RunRepeatModeler
+    set val(name), file(fasta) from filteredGenomes4RunRepeatModeler
     file "rmlib" from rmlib
 
     output:
@@ -1278,7 +1336,7 @@ process runRepeatModeler {
       mv "${name}-families.stk" "${name}_repeatmodeler.stk"
     fi
 
-    rm -rf -- rmlib_tmp
+    rm -rf -- rmlib_tmp RM_*
     """
 }
 
@@ -1297,6 +1355,8 @@ process getRepeatModelerFasta {
 
     label "python3"
     label "small_task"
+    time "1h"
+
     tag "${name}"
     publishDir "${params.outdir}/tes/${name}"
 
@@ -1322,6 +1382,8 @@ process getRepeatModelerGFF {
 
     label "gffpal"
     label "small_task"
+    time "1h"
+
     tag "${name}"
 
     input:
@@ -1352,6 +1414,7 @@ process getMMSeqsGenomes {
 
     label "mmseqs"
     label "small_task"
+    time "2h"
 
     tag "${name}"
 
@@ -1391,6 +1454,7 @@ process getMSAAttributes {
 
     label "gffpal"
     label "small_task"
+    time "1h"
 
     tag "${db}"
 
@@ -1414,6 +1478,7 @@ process getMMSeqsProfiles {
 
     label "mmseqs"
     label "medium_task"
+    time "4h"
 
     tag "${db}"
 
@@ -1456,6 +1521,7 @@ process searchProfilesVsGenomes {
 
     label "mmseqs"
     label "medium_task"
+    time "4h"
 
     tag "${name} - ${db}"
     publishDir "${params.outdir}/tes/${name}"
@@ -1515,6 +1581,7 @@ process getMMSeqsGenomeGFFs {
 
     label "gffpal"
     label "small_task"
+    time "1h"
 
     tag "${name} - ${db}"
 
@@ -1548,6 +1615,7 @@ process getMMSeqsGenomeFastas {
 
     label "genometools"
     label "small_task"
+    time "1h"
 
     tag "${name} - ${db}"
 
@@ -1600,6 +1668,7 @@ process getGtSuffixArrays {
 
     label "genometools"
     label "small_task"
+    time "2h"
 
     tag "${name}"
 
@@ -1646,6 +1715,7 @@ process runLtrHarvest {
 
     label "genometools"
     label "small_task"
+    time "4h"
 
     tag "${name}"
 
@@ -1691,6 +1761,8 @@ process runLtrDigest {
 
     label "genometools"
     label "small_task"
+    time "4h"
+
     tag "${name}"
     publishDir "${params.outdir}/tes/${name}", saveAs: exclude_unclean
 
@@ -1765,6 +1837,8 @@ process runEAHelitron {
 
     label "eahelitron"
     label "small_task"
+    time "6h"
+
     tag "${name}"
     publishDir "${params.outdir}/tes/${name}", saveAs: exclude_unclean
 
@@ -1809,6 +1883,7 @@ process filterEAHelitronGFF {
 
     label "gffpal"
     label "small_task"
+    time "1h"
 
     tag "${name}"
 
@@ -1840,6 +1915,8 @@ process filterEAHelitronGFF {
 process runMiteFinder {
     label "mitefinder"
     label "small_task"
+    time "6h"
+
     tag "${name}"
 
     input:
@@ -1867,6 +1944,8 @@ process getMiteFInderGFFs {
 
     label "gffpal"
     label "small_task"
+    time "1h"
+
     tag "${name}"
 
     input:
@@ -1900,6 +1979,8 @@ process getMiteFinderFastas {
 
     label "genometools"
     label "small_task"
+    time "1h"
+
     tag "${name}"
     publishDir "${params.outdir}/tes/${name}"
 
@@ -1943,8 +2024,9 @@ process getMiteFinderFastas {
  */
 process combineTEFastas {
 
-    label "posix"
+    label "python3"
     label "small_task"
+    time "2h"
 
     publishDir "${params.outdir}/pantes"
 
@@ -1964,10 +2046,10 @@ process combineTEFastas {
     script:
     """
     cat in/*.fasta \
-    | fasta_to_tsv.sh \
-    | sort -u -k1,1 \
-    | tsv_to_fasta.sh \
-    > combined_tes.fasta
+    | exclude_contained_subseqs.py \
+        --coverage 0.95 \
+        -o combined_tes.fasta \
+        -
     """
 }
 
@@ -1985,6 +2067,7 @@ process clusterTEFastas {
 
     label "vsearch"
     label "medium_task"
+    time "1d"
 
     publishDir "${params.outdir}/pantes"
 
@@ -2000,10 +2083,10 @@ process clusterTEFastas {
     vsearch \
       --threads "${task.cpus}" \
       --cluster_fast "combined.fasta" \
-      --id 0.8 \
-      --weak_id 0.6 \
+      --id 0.90 \
+      --weak_id 0.7 \
       --iddef 0 \
-      --qmask none \
+      --qmask dust \
       --uc clusters.tsv \
       --strand "both" \
       --clusters "clusters/fam"
@@ -2018,6 +2101,7 @@ process filterTEClusters {
 
     label "python3"
     label "small_task"
+    time "4h"
 
     publishDir "${params.outdir}/pantes"
 
@@ -2058,6 +2142,7 @@ process getClusterMSAs {
 
     label "decipher"
     label "big_task"
+    time "1d"
 
     publishDir "${params.outdir}/pantes"
 
@@ -2098,6 +2183,7 @@ process getClusterMSAConsensus {
 
     label "decipher"
     label "medium_task"
+    time "6h"
 
     publishDir "${params.outdir}/pantes"
 
@@ -2131,6 +2217,7 @@ process getClusterMSAStockholm {
 
     label "python3"
     label "small_task"
+    time "2h"
 
     publishDir "${params.outdir}/pantes"
 
@@ -2159,6 +2246,7 @@ process runRepeatClassifier {
 
     label "repeatmasker"
     label "big_task"
+    time "12h"
 
     publishDir "${params.outdir}/pantes"
 
@@ -2200,6 +2288,8 @@ process runRepeatMaskerSpecies {
 
     label "repeatmasker"
     label "medium_task"
+    time "1d"
+
     tag "${name}"
     publishDir "${params.outdir}/tes/${name}"
 
@@ -2251,6 +2341,8 @@ process runRepeatMasker {
 
     label "repeatmasker"
     label "medium_task"
+    time "1d"
+
     tag "${name}"
     publishDir "${params.outdir}/tes/${name}"
 
@@ -2295,6 +2387,7 @@ process getRepeatMaskerGFF {
 
     label "gffpal"
     label "small_task"
+    time "2h"
 
     tag "${name} - ${analysis}"
 
@@ -2304,7 +2397,7 @@ process getRepeatMaskerGFF {
         file("rm.out") from repeatMaskerResults
             .map { n, o -> [n, "repeatmasker", o] }
             .mix( repeatMaskerSpeciesResults
-                    .map {n, o -> [n, "repeatmasker_species" ]} )
+                    .map {n, o -> [n, "repeatmasker_species", o ]} )
 
     output:
     set val(name),
@@ -2324,6 +2417,7 @@ process tidyGFFs {
 
     label "genometools"
     label "small_task"
+    time "1h"
 
     publishDir "${params.outdir}/${folder}/${name}"
 
@@ -2374,6 +2468,7 @@ process combineGFFs {
 
     label "genometools"
     label "small_task"
+    time "2h"
 
     publishDir "${params.outdir}/final"
     tag "${name}"
@@ -2404,6 +2499,7 @@ process getSoftmaskedGenomes {
 
     label "bedtools"
     label "small_task"
+    time "1h"
 
     publishDir "${params.outdir}/final"
     tag "${name}"
@@ -2424,10 +2520,23 @@ process getSoftmaskedGenomes {
 
     script:
     """
+    fasta_to_tsv.sh \
+    < genome.fasta \
+    | awk 'BEGIN {OFS="\\t"} {print \$1, 0, length(\$2)}' \
+    > genome.bed
+
+    bedtools intersect \
+      -a repeats.gff3 \
+      -b genome.bed \
+    > bounded.gff3
+
+
     bedtools maskfasta \
       -fi genome.fasta \
-      -bed repeats.gff3 \
+      -bed bounded.gff3 \
       -fo "${name}_softmasked.fasta" \
       -soft
+
+    rm -f bounded.gff3 genome.bed
     """
 }
